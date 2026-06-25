@@ -2,7 +2,8 @@
   "name": "learning-service",
   "version": "1.0.0",
   "bin": {
-    "learning-service": "./scripts/cli.js"
+    "learning-service": "./scripts/cli.js",
+    "Learning-Service": "./scripts/cli.js"
   },
   "scripts": {
     "build": "echo 'No build step — ts-node runs TypeScript directly'",
