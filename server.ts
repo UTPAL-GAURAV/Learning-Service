@@ -18,6 +18,7 @@ app.use("/auth/google", googleRouter);
 app.use("/auth/callback", callbackRouter);
 app.use("/api/me", meRouter);
 app.use("/api/sessions", sessionsRouter);
+app.use("/api/cards", sessionsRouter);  // PATCH /api/cards/:cardId/attempts
 app.use("/api/weak-areas", weakAreasRouter);
 app.use("/mcp", mcpRouter);
 

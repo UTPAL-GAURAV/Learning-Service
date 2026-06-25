@@ -32,12 +32,13 @@ export function getOAuthClient(): OAuth2Client {
   );
 }
 
-export function getAuthUrl(): string {
+export function getAuthUrl(state?: string): string {
   const client = getOAuthClient();
   return client.generateAuthUrl({
     access_type: "offline",
     scope: ["openid", "email", "profile"],
     prompt: "select_account",
+    ...(state ? { state } : {}),
   });
 }
 

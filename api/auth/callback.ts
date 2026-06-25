@@ -26,6 +26,13 @@ router.get("/", async (req, res) => {
     const user = rows[0] as { id: string; email: string };
     const token = signToken({ userId: user.id, email: user.email });
 
+    // CLI flow: state = local port number → redirect to setup script's temporary server
+    if (typeof state === "string" && /^\d{4,5}$/.test(state)) {
+      res.redirect(302, `http://localhost:${state}/callback?token=${token}`);
+      return;
+    }
+
+    // Browser flow → redirect to frontend
     const frontendUrl = process.env.FRONTEND_URL ?? "https://learning-ui-indol.vercel.app";
     res.redirect(302, `${frontendUrl}/#token=${token}`);
   } catch (err) {

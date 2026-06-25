@@ -2,6 +2,9 @@
   "name": "learning-service",
   "version": "1.0.0",
   "private": true,
+  "bin": {
+    "learning-service": "./scripts/cli.js"
+  },
   "scripts": {
     "build": "echo 'No build step — ts-node runs TypeScript directly'",
     "start": "ts-node --transpile-only server.ts",
