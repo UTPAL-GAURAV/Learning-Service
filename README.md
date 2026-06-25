@@ -120,9 +120,13 @@ All `/api/*` routes require `Authorization: Bearer <jwt>`.
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `/auth/google` | Redirects to Google OAuth consent screen |
-| `GET` | `/auth/callback` | Exchanges code, upserts user, redirects with JWT |
+| `GET` | `/auth/callback` | Exchanges code, upserts user, redirects to frontend with `#token=<jwt>` |
 | `GET` | `/api/me` | Returns user profile |
 | `PUT` | `/api/me` | Updates `role`, `level`, `learningGoal` |
+| `GET` | `/api/sessions` | All sessions for the user (with last score + weak area count) |
+| `GET` | `/api/sessions/:topicSlug` | Full session data for one topic |
+| `GET` | `/api/sessions/:topicSlug/scores` | Score history for one topic |
+| `GET` | `/api/weak-areas` | All weak areas (filter by `?topic=slug`) |
 
 ---
 
