@@ -101,7 +101,7 @@ function writeVSCodeMCPConfig(token: string) {
   const mcpServers = (settings["mcp.servers"] as Record<string, unknown>) ?? {};
   mcpServers["learning"] = {
     command: "npx",
-    args: ["github:utpalgaurav/learning-service", "--mcp"],
+    args: ["github:UTPAL-GAURAV/Learning-Service", "--mcp"],
   };
   settings["mcp.servers"] = mcpServers;
 
@@ -116,7 +116,7 @@ async function main() {
   if (isMcpMode) {
     // Load token and start MCP server
     if (!fs.existsSync(CONFIG_FILE)) {
-      console.error("Not set up. Run: npx github:utpalgaurav/learning-service");
+      console.error("Not set up. Run: npx github:UTPAL-GAURAV/Learning-Service");
       process.exit(1);
     }
     const { token } = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")) as { token: string };
