@@ -1,10 +1,14 @@
 {
   "name": "learning-service",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "bin": {
     "learning-service": "./scripts/cli.js",
     "Learning-Service": "./scripts/cli.js"
   },
+  "files": [
+    "scripts/cli.js",
+    "scripts/mcp-server.js"
+  ],
   "scripts": {
     "build": "echo 'No build step — ts-node runs TypeScript directly'",
     "start": "ts-node --transpile-only server.ts",
