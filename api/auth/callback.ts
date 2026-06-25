@@ -26,9 +26,8 @@ router.get("/", async (req, res) => {
     const user = rows[0] as { id: string; email: string };
     const token = signToken({ userId: user.id, email: user.email });
 
-    const port =
-      typeof state === "string" && /^\d+$/.test(state) ? state : "9876";
-    res.redirect(302, `http://localhost:${port}/callback?token=${token}`);
+    const frontendUrl = process.env.FRONTEND_URL ?? "https://learning-ui-indol.vercel.app";
+    res.redirect(302, `${frontendUrl}/#token=${token}`);
   } catch (err) {
     console.error("OAuth callback error", err);
     res.status(500).json({ error: "Authentication failed" });
