@@ -1,6 +1,10 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import express from "express";
 import { getAuthUrl } from "../../lib/auth";
 
-export default function handler(_req: VercelRequest, res: VercelResponse) {
+const router = express.Router();
+
+router.get("/", (_req, res) => {
   res.redirect(302, getAuthUrl());
-}
+});
+
+export default router;

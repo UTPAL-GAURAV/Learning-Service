@@ -1,8 +1,10 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import express, { Request, Response } from "express";
 import { verifyToken, extractBearerToken } from "../lib/auth";
 import { sql } from "../lib/db";
 
-async function getMe(userId: string) {
+const router = express.Router();
+
+async function getUser(userId: string) {
   const rows = await sql`
     SELECT id, name, email, role, level, learning_goal
     FROM users WHERE id = ${userId}
@@ -26,40 +28,46 @@ async function getMe(userId: string) {
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  let userId: string;
+function requireAuth(req: Request, res: Response): string | null {
   try {
     const token = extractBearerToken(req.headers.authorization);
-    ({ userId } = verifyToken(token));
+    return verifyToken(token).userId;
   } catch {
-    return res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
   }
-
-  if (req.method === "GET") {
-    const user = await getMe(userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    return res.status(200).json(user);
-  }
-
-  if (req.method === "PUT") {
-    const { role, level, learningGoal } = req.body as {
-      role?: string;
-      level?: string;
-      learningGoal?: string;
-    };
-
-    await sql`
-      UPDATE users
-      SET
-        role = COALESCE(${role ?? null}, role),
-        level = COALESCE(${level ?? null}, level),
-        learning_goal = COALESCE(${learningGoal ?? null}, learning_goal)
-      WHERE id = ${userId}
-    `;
-
-    const user = await getMe(userId);
-    return res.status(200).json(user);
-  }
-
-  return res.status(405).json({ error: "Method not allowed" });
 }
+
+router.get("/", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const user = await getUser(userId);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  res.json(user);
+});
+
+router.put("/", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const { role, level, learningGoal } = req.body as {
+    role?: string;
+    level?: string;
+    learningGoal?: string;
+  };
+
+  await sql`
+    UPDATE users
+    SET
+      role         = COALESCE(${role ?? null}, role),
+      level        = COALESCE(${level ?? null}, level),
+      learning_goal = COALESCE(${learningGoal ?? null}, learning_goal)
+    WHERE id = ${userId}
+  `;
+
+  const user = await getUser(userId);
+  res.json(user);
+});
+
+export default router;

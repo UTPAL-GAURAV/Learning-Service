@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "rewrites": [
-    { "source": "/auth/google", "destination": "/api/auth/google" },
-    { "source": "/auth/callback", "destination": "/api/auth/callback" },
-    { "source": "/api/me", "destination": "/api/me" },
-    { "source": "/mcp", "destination": "/api/mcp" }
-  ]
-}

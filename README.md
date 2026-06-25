@@ -4,7 +4,7 @@ A hosted multi-user learning session backend. Users authenticate with Google, ge
 
 ## Stack
 
-- **Runtime:** Node.js + TypeScript, deployed as Vercel serverless functions
+- **Runtime:** Node.js + TypeScript (`ts-node --transpile-only`), deployed as a Render web service
 - **Database:** Neon PostgreSQL (`@neondatabase/serverless`)
 - **Auth:** Google OAuth 2.0 → JWT (1-year expiry)
 - **MCP transport:** Streamable HTTP at `/mcp`
@@ -31,17 +31,14 @@ vercel.json            Route config
 ## Prerequisites
 
 - [Node.js 20+](https://nodejs.org)
-- [Vercel CLI](https://vercel.com/docs/cli): `npm i -g vercel`
 - A [Neon](https://neon.tech) project
 - A [Google Cloud OAuth 2.0](https://console.cloud.google.com) app (Web application type)
 
 ---
 
-## Deployment
+## Deployment (Render)
 
 ### 1. Create the database schema
-
-Copy your Neon connection string, then run:
 
 ```bash
 psql "$DATABASE_URL" -f schema.sql
@@ -53,45 +50,29 @@ In [Google Cloud Console](https://console.cloud.google.com):
 
 1. Create a project → APIs & Services → Credentials → Create OAuth 2.0 Client ID
 2. Application type: **Web application**
-3. Authorized redirect URI: `https://<your-vercel-url>/auth/callback`
+3. Authorized redirect URI: `https://<your-render-url>/auth/callback`
 4. Note down the **Client ID** and **Client Secret**
 
-### 3. Set environment variables on Vercel
+### 3. Deploy to Render
 
-```bash
-vercel env add DATABASE_URL        # Neon connection string
-vercel env add GOOGLE_CLIENT_ID
-vercel env add GOOGLE_CLIENT_SECRET
-vercel env add GOOGLE_REDIRECT_URI  # https://<your-vercel-url>/auth/callback
-vercel env add JWT_SECRET           # openssl rand -hex 32
-```
-
-### 4. Deploy
-
-```bash
-# Preview deployment
-vercel
-
-# Production
-vercel --prod
-```
+1. Create a new **Web Service** on [render.com](https://render.com)
+2. Connect your GitHub repo
+3. Set these settings:
+   - **Environment:** Node
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+4. Add environment variables (see table below)
+5. Click **Deploy**
 
 ---
 
 ## Local development
 
 ```bash
-# Install dependencies
 npm install
-
-# Copy env template and fill in values
-cp .env.example .env
-
-# Start local dev server (Vercel dev emulates serverless functions)
+cp .env.example .env  # fill in values
 npm run dev
 ```
-
-The dev server starts at `http://localhost:3000`. Set `GOOGLE_REDIRECT_URI=http://localhost:3000/auth/callback` in your local `.env` for OAuth to work locally.
 
 ---
 
