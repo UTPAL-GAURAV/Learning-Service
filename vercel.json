@@ -1,10 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node@5"
-    }
-  },
   "rewrites": [
     { "source": "/auth/google", "destination": "/api/auth/google" },
     { "source": "/auth/callback", "destination": "/api/auth/callback" },
