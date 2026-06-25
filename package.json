@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "npx vercel dev",
     "build": "tsc --noEmit",
     "setup": "ts-node scripts/setup.ts"
   },
