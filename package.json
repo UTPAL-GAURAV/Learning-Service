@@ -1,7 +1,6 @@
 {
   "name": "learning-service",
   "version": "1.0.0",
-  "private": true,
   "bin": {
     "learning-service": "./scripts/cli.js"
   },
