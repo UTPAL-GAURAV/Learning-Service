@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "npx vercel dev",
     "build": "tsc --noEmit",
+    "vercel-build": "tsc --noEmit",
     "setup": "ts-node scripts/setup.ts"
   },
   "dependencies": {
