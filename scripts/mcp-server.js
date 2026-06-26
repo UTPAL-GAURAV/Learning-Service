@@ -7,7 +7,7 @@
 
 const https = require("https");
 
-function apiCall(method, urlPath, token, body) {
+function apiCallOnce(method, urlPath, token, body) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : undefined;
     const url = new URL(urlPath, "https://learning-service-yys6.onrender.com");
@@ -21,6 +21,7 @@ function apiCall(method, urlPath, token, body) {
           Authorization: `Bearer ${token}`,
           ...(payload ? { "Content-Length": Buffer.byteLength(payload) } : {}),
         },
+        timeout: 35000,
       },
       (res) => {
         let data = "";
@@ -31,10 +32,23 @@ function apiCall(method, urlPath, token, body) {
         });
       }
     );
+    req.on("timeout", () => { req.destroy(new Error("Request timed out")); });
     req.on("error", reject);
     if (payload) req.write(payload);
     req.end();
   });
+}
+
+// Retries up to 6 times with 5s delay (30s total window) to handle Render cold-starts.
+async function apiCall(method, urlPath, token, body, retries = 6, delayMs = 5000) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await apiCallOnce(method, urlPath, token, body);
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
 }
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
