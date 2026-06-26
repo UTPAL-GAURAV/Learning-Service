@@ -3,7 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as https from "https";
 
-function apiCall(
+function apiCallOnce(
   method: string,
   path: string,
   token: string,
@@ -36,6 +36,24 @@ function apiCall(
     if (payload) req.write(payload);
     req.end();
   });
+}
+
+async function apiCall(
+  method: string,
+  path: string,
+  token: string,
+  body?: unknown,
+  retries = 6,
+  delayMs = 5000
+): Promise<unknown> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await apiCallOnce(method, path, token, body);
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
 }
 
 export async function startMcpServer(token: string) {
