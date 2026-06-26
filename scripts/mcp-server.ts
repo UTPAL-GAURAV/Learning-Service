@@ -1,7 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import * as https from "https";
+import * as http from "http";
 
 function apiCallOnce(
   method: string,
@@ -56,7 +58,7 @@ async function apiCall(
   }
 }
 
-export async function startMcpServer(token: string) {
+function buildServer(token: string): McpServer {
   const server = new McpServer({ name: "learning-service", version: "1.0.0" });
 
   server.tool("get_user_context", "Get user profile and active sessions summary", {}, async () => {
@@ -157,6 +159,35 @@ export async function startMcpServer(token: string) {
     return { content: [{ type: "text", text: JSON.stringify({ deleted: true }) }] };
   });
 
+  return server;
+}
+
+export async function startMcpServer(token: string) {
+  const server = buildServer(token);
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+
+export async function startHttpMcpServer(token: string, port = 3456) {
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  const server = buildServer(token);
+  await server.connect(transport);
+
+  const httpServer = http.createServer((req, res) => {
+    if (req.url === "/mcp") {
+      let body = "";
+      req.on("data", (chunk) => (body += chunk));
+      req.on("end", () => {
+        let parsed: unknown;
+        try { parsed = body ? JSON.parse(body) : undefined; } catch { parsed = undefined; }
+        transport.handleRequest(req, res, parsed);
+      });
+    } else {
+      res.writeHead(404).end();
+    }
+  });
+
+  httpServer.listen(port, "127.0.0.1", () => {
+    process.stderr.write(`learning-service MCP HTTP server listening on http://127.0.0.1:${port}/mcp\n`);
+  });
 }

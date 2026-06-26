@@ -167,14 +167,24 @@ function writeMCPConfigs() {
   }
 }
 
-async function runMcp() {
+function getToken() {
   if (!fs.existsSync(CONFIG_FILE)) {
     console.error("Learning Service not set up. Run this once to get started:\n\n  npx github:UTPAL-GAURAV/Learning-Service\n");
     process.exit(1);
   }
-  const { token } = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+  return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).token;
+}
+
+async function runMcp() {
+  const token = getToken();
   const { startMcpServer } = require("./mcp-server.js");
   await startMcpServer(token);
+}
+
+async function runHttpMcp(port) {
+  const token = getToken();
+  const { startHttpMcpServer } = require("./mcp-server.js");
+  await startHttpMcpServer(token, port);
 }
 
 async function runSetup() {
@@ -209,7 +219,11 @@ async function runSetup() {
 }
 
 async function main() {
-  if (process.argv.includes("--mcp")) {
+  const httpIdx = process.argv.indexOf("--http");
+  if (httpIdx !== -1) {
+    const port = parseInt(process.argv[httpIdx + 1], 10) || 3456;
+    await runHttpMcp(port);
+  } else if (process.argv.includes("--mcp")) {
     await runMcp();
   } else {
     await runSetup();

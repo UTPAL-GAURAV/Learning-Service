@@ -1,11 +1,12 @@
 "use strict";
 
-// Implements MCP stdio transport using raw JSON-RPC — no npm deps required.
+// Implements MCP stdio and HTTP transports using raw JSON-RPC — no npm deps required.
 // This lets `npx github:UTPAL-GAURAV/Learning-Service --mcp` work without
 // installing node_modules (npx installs the package but skips postinstall deps
 // in many environments, so @modelcontextprotocol/sdk is not guaranteed present).
 
 const https = require("https");
+const http = require("http");
 
 function apiCallOnce(method, urlPath, token, body) {
   return new Promise((resolve, reject) => {
@@ -334,4 +335,105 @@ async function startMcpServer(token) {
   process.stdin.resume();
 }
 
-module.exports = { startMcpServer };
+// ── HTTP JSON-RPC transport ───────────────────────────────────────────────────
+
+async function startHttpMcpServer(token, port = 3456) {
+  const tools = buildTools();
+
+  // Sessions: Map<sessionId, { send: fn }>
+  const sessions = new Map();
+
+  function makeResponder(res, sessionId) {
+    return function send(obj) {
+      const body = JSON.stringify(obj);
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+        ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
+      });
+      res.end(body);
+    };
+  }
+
+  const server = http.createServer(async (req, res) => {
+    if (req.url !== "/mcp") {
+      res.writeHead(404).end();
+      return;
+    }
+
+    // CORS for local clients
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id");
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204).end();
+      return;
+    }
+
+    if (req.method === "DELETE") {
+      const sid = req.headers["mcp-session-id"];
+      if (sid) sessions.delete(sid);
+      res.writeHead(204).end();
+      return;
+    }
+
+    if (req.method !== "POST") {
+      res.writeHead(405).end();
+      return;
+    }
+
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", async () => {
+      let msg;
+      try { msg = JSON.parse(body); } catch {
+        res.writeHead(400).end(JSON.stringify({ error: "Invalid JSON" }));
+        return;
+      }
+
+      const { id, method, params } = msg;
+      const send = makeResponder(res, req.headers["mcp-session-id"]);
+
+      try {
+        if (method === "initialize") {
+          const sessionId = `sess-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          sessions.set(sessionId, {});
+          send({
+            jsonrpc: "2.0", id,
+            result: {
+              protocolVersion: "2024-11-05",
+              capabilities: { tools: {} },
+              serverInfo: { name: "learning-service", version: "1.0.0" },
+              sessionId,
+            },
+          });
+        } else if (method === "notifications/initialized") {
+          res.writeHead(204).end();
+        } else if (method === "tools/list") {
+          send({ jsonrpc: "2.0", id, result: { tools } });
+        } else if (method === "tools/call") {
+          const result = await callTool(params.name, params.arguments || {}, token);
+          send({
+            jsonrpc: "2.0", id,
+            result: { content: [{ type: "text", text: JSON.stringify(result) }] },
+          });
+        } else if (id !== undefined) {
+          send({ jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } });
+        } else {
+          res.writeHead(204).end();
+        }
+      } catch (err) {
+        if (!res.headersSent) {
+          send({ jsonrpc: "2.0", id: id ?? null, error: { code: -32603, message: err.message || String(err) } });
+        }
+      }
+    });
+  });
+
+  server.listen(port, "127.0.0.1", () => {
+    process.stderr.write(`learning-service MCP HTTP server listening on http://127.0.0.1:${port}/mcp\n`);
+  });
+}
+
+module.exports = { startMcpServer, startHttpMcpServer };
