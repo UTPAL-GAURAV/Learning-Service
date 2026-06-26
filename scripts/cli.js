@@ -88,11 +88,34 @@ function apiPut(path, token, body) {
   });
 }
 
+function resolveMcpCommand() {
+  // Use `node <absolute-path-to-cli.js>` so Claude Code launches the server directly
+  // without going through npx. npx prints "Need to install..." to stdout on first run,
+  // corrupting the MCP Content-Length framing before the server even starts.
+  //
+  // Strategy: find the real install path via `npm root -g`, which is stable across
+  // package managers on all platforms (homebrew, nvm, system npm, volta, fnm).
+  try {
+    const { execSync } = require("child_process");
+    const npmRoot = execSync("npm root -g", { encoding: "utf8" }).trim();
+    const cliPath = path.join(npmRoot, "learning-service", "scripts", "cli.js");
+    if (fs.existsSync(cliPath)) {
+      return { command: process.execPath, args: [cliPath, "--mcp"] };
+    }
+  } catch { /* npm root -g failed */ }
+
+  // Fallback: we're running from the script itself (e.g. local dev or npx temp path)
+  const thisScript = process.argv[1];
+  if (thisScript && fs.existsSync(thisScript)) {
+    return { command: process.execPath, args: [thisScript, "--mcp"] };
+  }
+
+  // Last resort: npx with --yes to suppress the interactive install prompt
+  return { command: "npx", args: ["--yes", "github:UTPAL-GAURAV/Learning-Service", "--mcp"] };
+}
+
 function writeMCPConfigs() {
-  const mcpEntry = {
-    command: "npx",
-    args: ["github:UTPAL-GAURAV/Learning-Service", "--mcp"],
-  };
+  const mcpEntry = resolveMcpCommand();
 
   // ── VS Code / Cursor: global settings.json ──
   const vsCandidates = [
@@ -109,6 +132,22 @@ function writeMCPConfigs() {
     vsSettings["mcp.servers"]["learning"] = mcpEntry;
     fs.writeFileSync(vsSettingsPath, JSON.stringify(vsSettings, null, 2), "utf8");
     console.log(`VS Code MCP config written to ${vsSettingsPath}`);
+  }
+
+  // ── Claude Code: project .claude/settings.json (in cwd) ──
+  // Also write user-level Claude Code settings as a fallback.
+  const claudeProjectSettings = path.join(process.cwd(), ".claude", "settings.json");
+  const claudeUserSettings = path.join(os.homedir(), ".claude", "settings.json");
+
+  for (const claudeSettingsPath of [claudeProjectSettings, claudeUserSettings]) {
+    if (!fs.existsSync(claudeSettingsPath)) continue;
+    let claudeSettings = {};
+    try { claudeSettings = JSON.parse(fs.readFileSync(claudeSettingsPath, "utf8")); } catch { /* corrupt */ }
+    claudeSettings.mcpServers = claudeSettings.mcpServers ?? {};
+    claudeSettings.mcpServers["learning"] = mcpEntry;
+    fs.writeFileSync(claudeSettingsPath, JSON.stringify(claudeSettings, null, 2), "utf8");
+    console.log(`Claude Code MCP config written to ${claudeSettingsPath}`);
+    break; // write to the first one found
   }
 }
 
