@@ -94,18 +94,6 @@ function writeMCPConfigs() {
     args: ["github:UTPAL-GAURAV/Learning-Service", "--mcp"],
   };
 
-  // ── Claude Code CLI: ~/.claude/settings.json ──
-  const claudeSettingsPath = path.join(os.homedir(), ".claude", "settings.json");
-  let claudeSettings = {};
-  if (fs.existsSync(claudeSettingsPath)) {
-    try { claudeSettings = JSON.parse(fs.readFileSync(claudeSettingsPath, "utf8")); } catch { /* corrupt */ }
-  }
-  claudeSettings.mcpServers = claudeSettings.mcpServers ?? {};
-  claudeSettings.mcpServers["learning"] = { type: "stdio", ...mcpEntry };
-  fs.mkdirSync(path.dirname(claudeSettingsPath), { recursive: true });
-  fs.writeFileSync(claudeSettingsPath, JSON.stringify(claudeSettings, null, 2), "utf8");
-  console.log(`Claude Code MCP config written to ${claudeSettingsPath}`);
-
   // ── VS Code / Cursor: global settings.json ──
   const vsCandidates = [
     path.join(os.homedir(), "Library", "Application Support", "Code", "User", "settings.json"),
@@ -126,7 +114,7 @@ function writeMCPConfigs() {
 
 async function runMcp() {
   if (!fs.existsSync(CONFIG_FILE)) {
-    console.error("Not set up. Run: npx github:UTPAL-GAURAV/Learning-Service");
+    console.error("Learning Service not set up. Run this once to get started:\n\n  npx github:UTPAL-GAURAV/Learning-Service\n");
     process.exit(1);
   }
   const { token } = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
