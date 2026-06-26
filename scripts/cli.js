@@ -88,6 +88,21 @@ function apiPut(path, token, body) {
   });
 }
 
+function resolveNodeBinary() {
+  // Prefer the stable symlink over process.execPath, which points to the versioned
+  // Cellar path (e.g. /opt/homebrew/Cellar/node/24.3.0/bin/node) and breaks when
+  // node is upgraded. The symlink stays valid across upgrades.
+  const stableNode = process.execPath.replace(/\/Cellar\/node\/[^/]+\/bin\/node$/, "/bin/node");
+  if (stableNode !== process.execPath && fs.existsSync(stableNode)) return stableNode;
+  // For nvm/fnm/volta: resolve `node` from PATH so the version manager's shim wins.
+  try {
+    const { execSync } = require("child_process");
+    const fromPath = execSync("which node", { encoding: "utf8" }).trim();
+    if (fromPath && fs.existsSync(fromPath)) return fromPath;
+  } catch { /* ignore */ }
+  return process.execPath;
+}
+
 function resolveMcpCommand() {
   // Use `node <absolute-path-to-cli.js>` so Claude Code launches the server directly
   // without going through npx. npx prints "Need to install..." to stdout on first run,
@@ -95,19 +110,20 @@ function resolveMcpCommand() {
   //
   // Strategy: find the real install path via `npm root -g`, which is stable across
   // package managers on all platforms (homebrew, nvm, system npm, volta, fnm).
+  const nodeBin = resolveNodeBinary();
   try {
     const { execSync } = require("child_process");
     const npmRoot = execSync("npm root -g", { encoding: "utf8" }).trim();
     const cliPath = path.join(npmRoot, "learning-service", "scripts", "cli.js");
     if (fs.existsSync(cliPath)) {
-      return { command: process.execPath, args: [cliPath, "--mcp"] };
+      return { command: nodeBin, args: [cliPath, "--mcp"] };
     }
   } catch { /* npm root -g failed */ }
 
   // Fallback: we're running from the script itself (e.g. local dev or npx temp path)
   const thisScript = process.argv[1];
   if (thisScript && fs.existsSync(thisScript)) {
-    return { command: process.execPath, args: [thisScript, "--mcp"] };
+    return { command: nodeBin, args: [thisScript, "--mcp"] };
   }
 
   // Last resort: npx with --yes to suppress the interactive install prompt
