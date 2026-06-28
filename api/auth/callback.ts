@@ -33,7 +33,7 @@ router.get("/", async (req, res) => {
     }
 
     // Browser flow → redirect to frontend
-    const frontendUrl = process.env.FRONTEND_URL ?? "https://learning-ui-indol.vercel.app";
+    const frontendUrl = process.env.FRONTEND_URL ?? "https://lumen-prep.vercel.app/";
     res.redirect(302, `${frontendUrl}/#token=${token}`);
   } catch (err) {
     console.error("OAuth callback error", err);

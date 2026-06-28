@@ -8,7 +8,7 @@ import weakAreasRouter from "./api/weak-areas";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const FRONTEND_URL = process.env.FRONTEND_URL ?? "https://learning-ui-indol.vercel.app";
+const FRONTEND_URL = process.env.FRONTEND_URL ?? "https://lumen-prep.vercel.app/";
 
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 app.use(express.json());
