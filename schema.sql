@@ -58,8 +58,12 @@ CREATE TABLE IF NOT EXISTS weak_areas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   topic_slug TEXT NOT NULL,
-  sub_topic TEXT NOT NULL,
+  sub_topic TEXT,
   description TEXT,
   last_updated TIMESTAMPTZ DEFAULT now(),
+  question_id TEXT,
+  question TEXT,
+  wrong_count INT DEFAULT 0,
+  flagged_for_review BOOLEAN DEFAULT false,
   UNIQUE(user_id, topic_slug, sub_topic)
 );
