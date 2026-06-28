@@ -5,7 +5,6 @@ import callbackRouter from "./api/auth/callback";
 import meRouter from "./api/me";
 import sessionsRouter from "./api/sessions";
 import weakAreasRouter from "./api/weak-areas";
-import mcpRouter from "./api/mcp";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +19,6 @@ app.use("/api/me", meRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/cards", sessionsRouter);  // PATCH /api/cards/:cardId/attempts
 app.use("/api/weak-areas", weakAreasRouter);
-app.use("/mcp", mcpRouter);
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 

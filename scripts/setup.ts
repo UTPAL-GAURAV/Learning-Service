@@ -8,7 +8,7 @@ import * as readline from "readline";
 import * as net from "net";
 import { exec } from "child_process";
 
-const BACKEND = "https://learning-service-yys6.onrender.com";
+const BACKEND = "https://learning-service-y9e3.onrender.com";
 const CONFIG_DIR = path.join(os.homedir(), ".learning-service");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 
@@ -82,49 +82,7 @@ function apiPut(path: string, token: string, body: Record<string, string>): Prom
   });
 }
 
-function writeVSCodeMCPConfig(token: string) {
-  // Try global VS Code settings first, then cursor, then fall back to creating it
-  const candidates = [
-    path.join(os.homedir(), "Library", "Application Support", "Code", "User", "settings.json"),
-    path.join(os.homedir(), ".config", "Code", "User", "settings.json"),
-    path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "settings.json"),
-    path.join(os.homedir(), ".config", "Cursor", "User", "settings.json"),
-  ];
-
-  const settingsPath = candidates.find((p) => fs.existsSync(p)) ?? candidates[0];
-
-  let settings: Record<string, unknown> = {};
-  if (fs.existsSync(settingsPath)) {
-    try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); } catch { /* corrupt */ }
-  }
-
-  const mcpServers = (settings["mcp.servers"] as Record<string, unknown>) ?? {};
-  mcpServers["learning"] = {
-    command: "npx",
-    args: ["github:UTPAL-GAURAV/Learning-Service", "--mcp"],
-  };
-  settings["mcp.servers"] = mcpServers;
-
-  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), "utf8");
-  console.log(`\nMCP config written to ${settingsPath}`);
-}
-
 async function main() {
-  const isMcpMode = process.argv.includes("--mcp");
-
-  if (isMcpMode) {
-    // Load token and start MCP server
-    if (!fs.existsSync(CONFIG_FILE)) {
-      console.error("Not set up. Run: npx github:UTPAL-GAURAV/Learning-Service");
-      process.exit(1);
-    }
-    const { token } = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")) as { token: string };
-    const { startMcpServer } = await import("./mcp-server");
-    await startMcpServer(token);
-    return;
-  }
-
   // ── Setup flow ──
   const port = await getFreePort();
   console.log("\nOpening Google login in your browser...");
@@ -150,10 +108,8 @@ async function main() {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify({ token, backend: BACKEND }, null, 2), "utf8");
   console.log(`\nToken saved to ${CONFIG_FILE}`);
 
-  writeVSCodeMCPConfig(token);
-
-  console.log("\nAll done! Open your project folder in VS Code and start a Claude session.");
-  console.log('Try: "Start a learning session on system design"\n');
+  console.log("\nAll done! Your token is ready to use.");
+  console.log(`Token: ${token}\n`);
 }
 
 main().catch((err) => {

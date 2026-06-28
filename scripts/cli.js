@@ -10,7 +10,7 @@ const readline = require("readline");
 const net = require("net");
 const { exec } = require("child_process");
 
-const BACKEND = "https://learning-service-yys6.onrender.com";
+const BACKEND = "https://learning-service-y9e3.onrender.com";
 const CONFIG_DIR = path.join(os.homedir(), ".learning-service");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 
@@ -88,103 +88,12 @@ function apiPut(path, token, body) {
   });
 }
 
-function resolveNodeBinary() {
-  // Prefer the stable symlink over process.execPath, which points to the versioned
-  // Cellar path (e.g. /opt/homebrew/Cellar/node/24.3.0/bin/node) and breaks when
-  // node is upgraded. The symlink stays valid across upgrades.
-  const stableNode = process.execPath.replace(/\/Cellar\/node\/[^/]+\/bin\/node$/, "/bin/node");
-  if (stableNode !== process.execPath && fs.existsSync(stableNode)) return stableNode;
-  // For nvm/fnm/volta: resolve `node` from PATH so the version manager's shim wins.
-  try {
-    const { execSync } = require("child_process");
-    const fromPath = execSync("which node", { encoding: "utf8" }).trim();
-    if (fromPath && fs.existsSync(fromPath)) return fromPath;
-  } catch { /* ignore */ }
-  return process.execPath;
-}
-
-function resolveMcpCommand() {
-  // Use `node <absolute-path-to-cli.js>` so Claude Code launches the server directly
-  // without going through npx. npx prints "Need to install..." to stdout on first run,
-  // corrupting the MCP Content-Length framing before the server even starts.
-  //
-  // Strategy: find the real install path via `npm root -g`, which is stable across
-  // package managers on all platforms (homebrew, nvm, system npm, volta, fnm).
-  const nodeBin = resolveNodeBinary();
-  try {
-    const { execSync } = require("child_process");
-    const npmRoot = execSync("npm root -g", { encoding: "utf8" }).trim();
-    const cliPath = path.join(npmRoot, "learning-service", "scripts", "cli.js");
-    if (fs.existsSync(cliPath)) {
-      return { command: nodeBin, args: [cliPath, "--mcp"] };
-    }
-  } catch { /* npm root -g failed */ }
-
-  // Fallback: we're running from the script itself (e.g. local dev or npx temp path)
-  const thisScript = process.argv[1];
-  if (thisScript && fs.existsSync(thisScript)) {
-    return { command: nodeBin, args: [thisScript, "--mcp"] };
-  }
-
-  // Last resort: npx with --yes to suppress the interactive install prompt
-  return { command: "npx", args: ["--yes", "github:UTPAL-GAURAV/Learning-Service", "--mcp"] };
-}
-
-function writeMCPConfigs() {
-  const mcpEntry = resolveMcpCommand();
-
-  // ── VS Code / Cursor: global settings.json ──
-  const vsCandidates = [
-    path.join(os.homedir(), "Library", "Application Support", "Code", "User", "settings.json"),
-    path.join(os.homedir(), ".config", "Code", "User", "settings.json"),
-    path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "settings.json"),
-    path.join(os.homedir(), ".config", "Cursor", "User", "settings.json"),
-  ];
-  const vsSettingsPath = vsCandidates.find((p) => fs.existsSync(p));
-  if (vsSettingsPath) {
-    let vsSettings = {};
-    try { vsSettings = JSON.parse(fs.readFileSync(vsSettingsPath, "utf8")); } catch { /* corrupt */ }
-    vsSettings["mcp.servers"] = vsSettings["mcp.servers"] ?? {};
-    vsSettings["mcp.servers"]["learning"] = mcpEntry;
-    fs.writeFileSync(vsSettingsPath, JSON.stringify(vsSettings, null, 2), "utf8");
-    console.log(`VS Code MCP config written to ${vsSettingsPath}`);
-  }
-
-  // ── Claude Code: project .claude/settings.json (in cwd) ──
-  // Also write user-level Claude Code settings as a fallback.
-  const claudeProjectSettings = path.join(process.cwd(), ".claude", "settings.json");
-  const claudeUserSettings = path.join(os.homedir(), ".claude", "settings.json");
-
-  for (const claudeSettingsPath of [claudeProjectSettings, claudeUserSettings]) {
-    if (!fs.existsSync(claudeSettingsPath)) continue;
-    let claudeSettings = {};
-    try { claudeSettings = JSON.parse(fs.readFileSync(claudeSettingsPath, "utf8")); } catch { /* corrupt */ }
-    claudeSettings.mcpServers = claudeSettings.mcpServers ?? {};
-    claudeSettings.mcpServers["learning"] = mcpEntry;
-    fs.writeFileSync(claudeSettingsPath, JSON.stringify(claudeSettings, null, 2), "utf8");
-    console.log(`Claude Code MCP config written to ${claudeSettingsPath}`);
-    break; // write to the first one found
-  }
-}
-
 function getToken() {
   if (!fs.existsSync(CONFIG_FILE)) {
     console.error("Learning Service not set up. Run this once to get started:\n\n  npx github:UTPAL-GAURAV/Learning-Service\n");
     process.exit(1);
   }
   return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).token;
-}
-
-async function runMcp() {
-  const token = getToken();
-  const { startMcpServer } = require("./mcp-server.js");
-  await startMcpServer(token);
-}
-
-async function runHttpMcp(port) {
-  const token = getToken();
-  const { startHttpMcpServer } = require("./mcp-server.js");
-  await startHttpMcpServer(token, port);
 }
 
 async function runSetup() {
@@ -212,22 +121,12 @@ async function runSetup() {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify({ token, backend: BACKEND }, null, 2), "utf8");
   console.log(`\nToken saved to ${CONFIG_FILE}`);
 
-  writeMCPConfigs();
-
-  console.log("\nAll done! Open your project folder in VS Code and start a Claude session.");
-  console.log('Try: "Start a learning session on system design"\n');
+  console.log("\nAll done! Your token is ready to use.");
+  console.log(`Token: ${token}\n`);
 }
 
 async function main() {
-  const httpIdx = process.argv.indexOf("--http");
-  if (httpIdx !== -1) {
-    const port = parseInt(process.argv[httpIdx + 1], 10) || 3456;
-    await runHttpMcp(port);
-  } else if (process.argv.includes("--mcp")) {
-    await runMcp();
-  } else {
-    await runSetup();
-  }
+  await runSetup();
 }
 
 main().catch((err) => {

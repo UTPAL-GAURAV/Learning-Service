@@ -6,8 +6,7 @@
     "Learning-Service": "./scripts/cli.js"
   },
   "files": [
-    "scripts/cli.js",
-    "scripts/mcp-server.js"
+    "scripts/cli.js"
   ],
   "scripts": {
     "build": "echo 'No build step — ts-node runs TypeScript directly'",
@@ -16,7 +15,6 @@
     "setup": "ts-node --transpile-only scripts/setup.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1",
     "@neondatabase/serverless": "^0.10.4",
     "cors": "^2.8.6",
     "express": "^5.2.1",

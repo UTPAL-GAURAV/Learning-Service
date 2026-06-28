@@ -1,13 +1,12 @@
 # Learning-Service
 
-A hosted multi-user learning session backend. Users authenticate with Google, get a JWT, and all their learning data (sessions, Q&A cards, scores, weak areas) is stored per-user in Neon PostgreSQL. Claude (VS Code extension) connects to the `/mcp` endpoint and uses MCP tools to read and write learning data instead of touching local files.
+A hosted multi-user learning session backend. Users authenticate with Google, get a JWT, and all their learning data (sessions, Q&A cards, scores, weak areas) is stored per-user in Neon PostgreSQL. Clients call the REST API directly using the JWT.
 
 ## Stack
 
 - **Runtime:** Node.js + TypeScript (`ts-node --transpile-only`), deployed as a Render web service
 - **Database:** Neon PostgreSQL (`@neondatabase/serverless`)
 - **Auth:** Google OAuth 2.0 → JWT (1-year expiry)
-- **MCP transport:** Streamable HTTP at `/mcp`
 
 ## Project structure
 
@@ -16,15 +15,14 @@ api/
   auth/google.ts       GET /auth/google
   auth/callback.ts     GET /auth/callback
   me.ts                GET + PUT /api/me
-  mcp.ts               POST /mcp  (all MCP tools)
+  sessions.ts          GET + POST + PATCH /api/sessions
+  weak-areas.ts        GET + POST + DELETE /api/weak-areas
 lib/
   db.ts                Neon client
   auth.ts              JWT helpers + Google OAuth
-  tools/               One file per MCP tool
 scripts/
   setup.ts             One-time user setup CLI
 schema.sql             All 5 tables
-vercel.json            Route config
 .env.example           Required env var names
 ```
 
@@ -78,38 +76,18 @@ npm run dev
 
 ## User setup (run once per user)
 
-Each user who wants to connect Claude to this service runs the setup script once:
+Each user who wants to connect to this service runs the setup script once:
 
 ```bash
-LEARNING_MCP_URL=https://<your-vercel-url>/mcp npx ts-node scripts/setup.ts
+npx ts-node scripts/setup.ts
 ```
 
 The script will:
 
 1. Open Google login in your browser
-2. Wait for the OAuth callback on `localhost:9876`
-3. Ask what you're learning for (role / goal)
-4. Ask your level (`beginner` / `intermediate` / `senior`)
-5. Write to `.env` in the current directory:
-   ```
-   LEARNING_TOKEN=<jwt>
-   LEARNING_MCP_URL=https://<your-vercel-url>/mcp
-   ```
-6. Merge into `~/.claude/settings.json`:
-   ```json
-   {
-     "mcpServers": {
-       "learning": {
-         "url": "https://<your-vercel-url>/mcp",
-         "headers": { "Authorization": "Bearer <jwt>" }
-       }
-     }
-   }
-   ```
-
-After setup, open VS Code, start a new Claude session, and say:
-
-> **Start a learning session on [your topic]**
+2. Wait for the OAuth callback on a local port
+3. Ask what you're learning for (role / goal / level)
+4. Save the JWT token to `~/.learning-service/config.json`
 
 ---
 
@@ -125,28 +103,15 @@ All `/api/*` routes require `Authorization: Bearer <jwt>`.
 | `PUT` | `/api/me` | Updates `role`, `level`, `learningGoal` |
 | `GET` | `/api/sessions` | All sessions for the user (with last score + weak area count) |
 | `GET` | `/api/sessions/:topicSlug` | Full session data for one topic |
+| `POST` | `/api/sessions` | Create a new session |
+| `PATCH` | `/api/sessions/:topicSlug` | Partial update of a session |
+| `POST` | `/api/sessions/:topicSlug/cards` | Add a Q&A card |
+| `PATCH` | `/api/cards/:cardId/attempts` | Record a practice attempt |
+| `POST` | `/api/sessions/:topicSlug/scores` | Log a readiness score |
 | `GET` | `/api/sessions/:topicSlug/scores` | Score history for one topic |
 | `GET` | `/api/weak-areas` | All weak areas (filter by `?topic=slug`) |
-
----
-
-## MCP tools
-
-All tool calls require `Authorization: Bearer <jwt>`. The server extracts `userId` from the JWT before every DB operation.
-
-| Tool | Description |
-|------|-------------|
-| `get_user_context` | User profile + all active sessions summary |
-| `get_session(topic_slug)` | Full session data; returns `null` if not found |
-| `create_session(topic_slug, topic_name, syllabus_topics[])` | Create a new session |
-| `update_session(topic_slug, patch)` | Partial update: notes, score, topics, concepts |
-| `add_qa_card(topic_slug, card)` | Add a Q&A card to a session |
-| `update_qa_attempts(card_id, attempt)` | Record a practice attempt |
-| `record_score(topic_slug, score, note?)` | Log a readiness score |
-| `get_score_history(topic_slug?)` | Score history for one or all topics |
-| `get_weak_areas(topic_slug?)` | Weak areas for one or all topics |
-| `upsert_weak_area(topic_slug, sub_topic, description)` | Add or update a weak area |
-| `remove_weak_area(topic_slug, sub_topic)` | Remove a resolved weak area |
+| `POST` | `/api/weak-areas` | Add or update a weak area |
+| `DELETE` | `/api/weak-areas/:topicSlug/:subTopic` | Remove a weak area |
 
 ---
 
@@ -157,5 +122,6 @@ All tool calls require `Authorization: Bearer <jwt>`. The server extracts `userI
 | `DATABASE_URL` | Neon PostgreSQL connection string |
 | `GOOGLE_CLIENT_ID` | Google OAuth app client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth app client secret |
-| `GOOGLE_REDIRECT_URI` | `https://<your-vercel-url>/auth/callback` |
-| `JWT_SECRET` | Random 64-char secret (`openssl rand -hex 32`) |
+| `GOOGLE_REDIRECT_URI` | `https://<your-render-url>/auth/callback` |
+| `JWT_SECRET` | Random 64-char secret (`node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`) |
+| `FRONTEND_URL` | Allowed CORS origin |
