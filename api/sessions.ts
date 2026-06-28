@@ -166,6 +166,44 @@ router.post("/:topicSlug/cards", async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
+// PUT /api/cards/:cardId
+router.put("/cards/:cardId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const { question, answer, difficulty, tags } = req.body as {
+    question?: string;
+    answer?: string;
+    difficulty?: "easy" | "medium" | "hard";
+    tags?: string[];
+  };
+
+  const rows = await sql`
+    UPDATE qa_cards SET
+      question   = COALESCE(${question ?? null}, question),
+      answer     = COALESCE(${answer ?? null}, answer),
+      difficulty = COALESCE(${difficulty ?? null}, difficulty),
+      tags       = COALESCE(${tags ? JSON.stringify(tags) : null}::jsonb, tags)
+    WHERE id = ${req.params.cardId} AND user_id = ${userId}
+    RETURNING id, question, answer, difficulty, tags, attempts, wrong_count, last_reviewed, created_at
+  `;
+  if (!rows[0]) { res.status(404).json({ error: "Card not found" }); return; }
+  res.json(rows[0]);
+});
+
+// DELETE /api/cards/:cardId
+router.delete("/cards/:cardId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const rows = await sql`
+    DELETE FROM qa_cards WHERE id = ${req.params.cardId} AND user_id = ${userId}
+    RETURNING id
+  `;
+  if (!rows[0]) { res.status(404).json({ error: "Card not found" }); return; }
+  res.status(204).send();
+});
+
 // PATCH /api/cards/:cardId/attempts
 router.patch("/cards/:cardId/attempts", async (req, res) => {
   const userId = requireAuth(req, res);
