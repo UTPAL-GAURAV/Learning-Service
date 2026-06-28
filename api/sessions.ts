@@ -28,7 +28,9 @@ router.get("/", async (req, res) => {
        WHERE user_id = ${userId} AND topic_slug = s.topic_slug
        ORDER BY date DESC LIMIT 1) AS last_score,
       (SELECT COUNT(*) FROM weak_areas
-       WHERE user_id = ${userId} AND topic_slug = s.topic_slug) AS weak_area_count
+       WHERE user_id = ${userId} AND topic_slug = s.topic_slug) AS weak_area_count,
+      (SELECT COUNT(*) FROM qa_cards
+       WHERE user_id = ${userId} AND session_id = s.id) AS qa_count
     FROM sessions s
     WHERE s.user_id = ${userId}
     ORDER BY s.updated_at DESC
@@ -67,6 +69,26 @@ router.post("/", async (req, res) => {
       created_at, updated_at
   `;
   res.status(201).json(rows[0]);
+});
+
+// GET /api/sessions/:topicSlug/cards
+router.get("/:topicSlug/cards", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const sessionRows = await sql`
+    SELECT id FROM sessions WHERE user_id = ${userId} AND topic_slug = ${req.params.topicSlug}
+  `;
+  if (!sessionRows[0]) { res.status(404).json({ error: "Session not found" }); return; }
+  const sessionId = (sessionRows[0] as { id: string }).id;
+
+  const rows = await sql`
+    SELECT id, question, answer, difficulty, tags, attempts, wrong_count, last_reviewed, created_at
+    FROM qa_cards
+    WHERE session_id = ${sessionId} AND user_id = ${userId}
+    ORDER BY created_at ASC
+  `;
+  res.json(rows);
 });
 
 // GET /api/sessions/:topicSlug
