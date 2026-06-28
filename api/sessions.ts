@@ -224,6 +224,19 @@ router.patch("/cards/:cardId/attempts", async (req, res) => {
   res.json(rows[0]);
 });
 
+// DELETE /api/sessions/:topicSlug
+router.delete("/:topicSlug", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const rows = await sql`
+    DELETE FROM sessions WHERE user_id = ${userId} AND topic_slug = ${req.params.topicSlug}
+    RETURNING id
+  `;
+  if (!rows[0]) { res.status(404).json({ error: "Session not found" }); return; }
+  res.status(204).send();
+});
+
 // GET /api/sessions/:topicSlug/scores
 router.get("/:topicSlug/scores", async (req, res) => {
   const userId = requireAuth(req, res);
